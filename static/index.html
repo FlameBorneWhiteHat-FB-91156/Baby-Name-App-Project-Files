@@ -49,110 +49,54 @@
         <input type="submit" id="button" value="Submit">
         
         <!-- JavaScript controls the page's behavior -->
-        <script>
         
-            //*** Submit function ***//
-            //
-            // This function runs when the user clicks the button
-            document.getElementById('button').onclick = function() {
+<script>
+document.getElementById('button').onclick = async function () {
+    const name = document.getElementById('nameInputBox').value.trim();
+    const sex = document.querySelector('input[name="sex"]:checked').value;
 
-                // Use XMLHttpRequest to send an asynchronous request to the server
-                var xmlhttp = new XMLHttpRequest();
+    if (!name) {
+        alert('Please enter a name.');
+        return;
+    }
 
-                // This function runs when the server's response arrives
-                xmlhttp.onload = function() {
-                    // Parse the JSON response and extract rankings
-                    let response = JSON.parse(this.responseText);
-                    let rankings = response.data;
-                    
-                    createPlot(rankings);
-                };
-                
-                // The name typed in the box
-                let name = document.getElementById('nameInputBox').value;
-                
-                // The value of the selected radio button
-                let sex;
-                
-                if (document.getElementById('female').checked) {
-                    sex = 'F';
-                } else {
-                    sex = 'M';
-                }
+    try {
+        const response = await fetch(
+            '/submit?' + new URLSearchParams({name, sex})
+        );
+        if (!response.ok) throw new Error('Request failed');
 
-                // Format the URL to pass the parameters using HTTP GET
-                xmlhttp.open("GET", "/submit?name=" + name + "&sex=" + sex);
-                xmlhttp.send();
-            }
-        
-        
-            //*** Create a plot from the server's response ***//
-            //
-            // Wraps around the Highcharts API
-            function createPlot(data) {
-            
-                // Convert response data into a list of objects
-                //
-                // The 'low' parameter sets the bottom of the bar so it rises
-                // from the bottom to the top of the reversed axis
-                //
-                // maxValue fixes the maximum ranking to 200 for consistently
-                // popular names
-                maxValue = Math.max(200, Math.max(...data) + 100);
-                
-                var rankings = [];
-                for (i = 0; i < data.length; i++) {
-                    rankings.push({'y': data[i], 'low': maxValue + 1});
-                }
-    
-                // Array of year values
-                years = [];
-                for (let i = 1910; i < 2026; i++) {
-                    years.push(i);
-                }
-                
-                Highcharts.chart('container', {
-                    chart: {
-                        type: 'column'
-                    },
-                    title: {
-                        text: 'Name Popularity by Year'
-                    },
-                    xAxis: {
-                        categories: years,
-                        crosshair: true,
-                        tickInterval: 5,
-                        
-                        title: {
-                            text: 'Year'
-                        }
-                    },
-                    yAxis: {
-                        min: 1,
-                        max: maxValue + 1,
-                        reversed: true,
-                        endOnTick: false,
-                        title: {
-                            text: 'Rank in year'
-                        }
-                    },
-                    plotOptions: {
-                        column: {
-                            groupPadding: 0.0,
-                            pointPadding: 0.0,
-                            borderWidth: 0.1
-                        },
-                        threshold: maxValue + 1
-                    },
-                    series: [{
-                        name: 'Relative popularity',
-                        data: rankings,
-                        showInLegend: false
-                    }],
-                });
-            }
-            
-        </script>
+        const result = await response.json();
+        const points = result.data.map((rank, i) => [
+            1910 + i,
+            rank === null ? null : Number(rank)
+        ]);
+
+        Highcharts.chart('container', {
+            chart: { type: 'line', height: 440 },
+            title: { text: name + ' - Popularity by Year' },
+            xAxis: {
+                type: 'linear',
+                title: { text: 'Year' }
+            },
+            yAxis: {
+                reversed: true,
+                title: { text: 'Rank (1 = most popular)' }
+            },
+            series: [{
+                name: 'Popularity rank',
+                data: points,
+                color: '#2457d5',
+                lineWidth: 3
+            }],
+            credits: { enabled: false }
+        });
+    } catch (error) {
+        alert('Chart error: ' + error.message);
+    }
+};
+</script>
+
         
         
         <!-- Highcharts for histograms -->
